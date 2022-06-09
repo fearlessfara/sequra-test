@@ -9,5 +9,4 @@ public class SequraTestApplication {
     public static void main(String[] args) {
         SpringApplication.run(SequraTestApplication.class, args);
     }
-
 }

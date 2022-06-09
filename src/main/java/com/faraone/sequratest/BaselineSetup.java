@@ -1,10 +1,8 @@
 package com.faraone.sequratest;
 
-import com.faraone.sequratest.model.FeeRate;
 import com.faraone.sequratest.model.Merchant;
 import com.faraone.sequratest.model.Order;
 import com.faraone.sequratest.model.Shopper;
-import com.faraone.sequratest.repository.FeeRateRepository;
 import com.faraone.sequratest.repository.MerchantRepository;
 import com.faraone.sequratest.repository.OrderRepository;
 import com.faraone.sequratest.repository.ShopperRepository;
@@ -17,8 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.test.context.TestComponent;
-import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.stereotype.Component;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,11 +27,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-@TestComponent
-@TestConfiguration
-public class TestSetup {
 
-    private static Logger LOG = LoggerFactory.getLogger(TestSetup.class);
+@Component
+public class BaselineSetup {
+
+    private static Logger LOG = LoggerFactory.getLogger(BaselineSetup.class);
 
     @Autowired
     ObjectMapper objectMapper;
@@ -49,9 +46,6 @@ public class TestSetup {
     ShopperRepository shopperRepository;
     @Autowired
     OrderRepository orderRepository;
-
-    @Autowired
-    FeeRateRepository feeRateRepository;
 
     @Value("classpath:merchants.json")
     File merchantsFile;
@@ -139,23 +133,6 @@ public class TestSetup {
         });
 
         orderRepository.saveAll(orders);
-
-        FeeRate first = new FeeRate();
-        first.setRate(BigDecimal.valueOf(1.00));
-        first.setRangeStart(BigDecimal.ZERO);
-        first.setRangeEnd(BigDecimal.valueOf(50.00));
-
-        FeeRate second = new FeeRate();
-        second.setRate(BigDecimal.valueOf(0.95));
-        second.setRangeStart(BigDecimal.valueOf(50.00));
-        second.setRangeEnd(BigDecimal.valueOf(300.00));
-
-        FeeRate third = new FeeRate();
-        third.setRate(BigDecimal.valueOf(0.85));
-        third.setRangeStart(BigDecimal.valueOf(300.00));
-        third.setRangeEnd(BigDecimal.valueOf(10000000000.00));
-        feeRateRepository.saveAll(List.of(first, second, third));
-
 
         LOG.info("Test data initialized");
     }

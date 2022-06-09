@@ -4,5 +4,13 @@ scheduled:
     enabled: true
 
 spring:
+  datasource:
+    username: sa
+    url: jdbc:h2:mem:test
+    password: ''
+    driver-class-name: org.h2.Driver
   jpa:
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
     open-in-view: false

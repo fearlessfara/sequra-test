@@ -61,13 +61,13 @@ public class DisbursementEngine {
                     disbursement = new Disbursement();
                     disbursement.setMerchant(merchant);
                     disbursement.setNetAmount(o.getAmount());
-                    disbursement.setFeeAmount(feeEngine.calculateFee(o.getAmount()));
+                    disbursement.setFeeAmount(feeEngine.calculateFeeAmount(o.getAmount()));
                     disbursement.setPeriodStart(from);
                     disbursement.setPeriodEnd(to);
                     merchantDisbursementMap.put(merchant, disbursement);
                 } else {
                     disbursement.setNetAmount(disbursement.getNetAmount().add(o.getAmount()));
-                    disbursement.setFeeAmount(disbursement.getFeeAmount().add(feeEngine.calculateFee(o.getAmount())));
+                    disbursement.setFeeAmount(disbursement.getFeeAmount().add(feeEngine.calculateFeeAmount(o.getAmount())));
                 }
             });
             pageable = pageable.next();
@@ -91,7 +91,7 @@ public class DisbursementEngine {
         while (!orderPage.isEmpty()) {
             orderPage.getContent().forEach(o -> {
                 grossAmount.set(grossAmount.get().add(o.getAmount()));
-                BigDecimal orderFee = feeEngine.calculateFee(o.getAmount());
+                BigDecimal orderFee = feeEngine.calculateFeeAmount(o.getAmount());
                 fee.set(fee.get().add(orderFee));
                 BigDecimal orderNetAmount = o.getAmount().subtract(orderFee);
                 netAmount.set(netAmount.get().add(orderNetAmount));
