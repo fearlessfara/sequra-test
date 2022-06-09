@@ -20,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @Import(BaselineSetup.class)
-@ActiveProfiles("test")
 class FeeEngineTest {
 
     @Autowired
