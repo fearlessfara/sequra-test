@@ -7,10 +7,10 @@ import com.faraone.sequratest.model.Merchant;
 import com.faraone.sequratest.repository.DisbursementRepository;
 import com.faraone.sequratest.repository.MerchantRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.Collections;
 import java.util.List;
 
 @Service
@@ -41,13 +41,18 @@ public class DisbursementService {
         }
     }
 
+    @Async
+    public void calculateDisbursementAsync(DisbursementSearchBean disbursementSearchBean) {
+        this.calculateDisbursements(disbursementSearchBean);
+    }
+
     public List<Disbursement> calculateDisbursements(DisbursementSearchBean disbursementSearchBean) {
         Instant from = disbursementSearchBean.from() != null ? disbursementSearchBean.from() : Instant.EPOCH;
         Instant to = disbursementSearchBean.to() != null ? disbursementSearchBean.to() : Instant.now();
         Merchant merchant = merchantRepository.findById(disbursementSearchBean.merchantId())
                 .orElseThrow(() -> new IllegalArgumentException("No merchant found for id " + disbursementSearchBean.merchantId()));
 
-        return Collections.singletonList(disbursementEngine.calculateByMerchantAndTimeFrame(merchant, from, to));
+        return disbursementEngine.calculateByMerchantAndTimeFrame(merchant, from, to);
 
     }
 }

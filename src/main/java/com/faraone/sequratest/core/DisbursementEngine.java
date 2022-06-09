@@ -1,5 +1,6 @@
 package com.faraone.sequratest.core;
 
+import com.faraone.sequratest.Tuple;
 import com.faraone.sequratest.model.Disbursement;
 import com.faraone.sequratest.model.Merchant;
 import com.faraone.sequratest.model.Order;
@@ -16,8 +17,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,36 +84,67 @@ public class DisbursementEngine {
         LOG.info("Processed {} disbursements", disbursements.size());
     }
 
-    public Disbursement calculateByMerchantAndTimeFrame(final Merchant merchant, final Instant from, final Instant to) {
+    //TODO a check should be performed to see if a disbursement already exists for the same merchant and period
+    public List<Disbursement> calculateByMerchantAndTimeFrame(final Merchant merchant, final Instant from, final Instant to) {
 
-        Pageable pageable = PageRequest.of(0, PAGE_SIZE);
-        Page<Order> orderPage = orderRepository.findOrdersByMerchantAndCompletedInTimeFrameAndStatusPaged(merchant, from, to, Order.Status.COMPLETED, pageable);
+        List<Tuple<Instant, Instant>> weeks = splitWeeks(from, to);
+        List<Disbursement> disbursements = new ArrayList<>();
+        for (Tuple<Instant, Instant> week : weeks) {
+            final Instant weekStart = week.getLeft();
+            final Instant weekEnd = week.getRight();
 
-        final AtomicReference<BigDecimal> grossAmount = new AtomicReference<>(BigDecimal.ZERO);
-        final AtomicReference<BigDecimal> fee = new AtomicReference<>(BigDecimal.ZERO);
-        final AtomicReference<BigDecimal> netAmount = new AtomicReference<>(BigDecimal.ZERO);
+            Pageable pageable = PageRequest.of(0, PAGE_SIZE);
+            Page<Order> orderPage = orderRepository.findOrdersByMerchantAndCompletedInTimeFrameAndStatusPaged(merchant, weekStart, weekEnd, Order.Status.COMPLETED, pageable);
 
-        while (!orderPage.isEmpty()) {
-            orderPage.getContent().forEach(o -> {
-                grossAmount.set(grossAmount.get().add(o.getAmount()));
-                BigDecimal orderFee = feeEngine.calculateFeeAmount(o.getAmount());
-                fee.set(fee.get().add(orderFee));
-                BigDecimal orderNetAmount = o.getAmount().subtract(orderFee);
-                netAmount.set(netAmount.get().add(orderNetAmount));
-            });
-            pageable = pageable.next();
-            orderPage = orderRepository.findOrdersCompletedInTimeFrameAndStatusPaged(from, to, Order.Status.COMPLETED, pageable);
+            //this check can be removed if we want to generate also empty disbursements
+            if(orderPage.isEmpty()) {
+                continue;
+            }
+            final AtomicReference<BigDecimal> grossAmount = new AtomicReference<>(BigDecimal.ZERO);
+            final AtomicReference<BigDecimal> fee = new AtomicReference<>(BigDecimal.ZERO);
+            final AtomicReference<BigDecimal> netAmount = new AtomicReference<>(BigDecimal.ZERO);
+
+            while (!orderPage.isEmpty()) {
+                orderPage.getContent().forEach(o -> {
+                    grossAmount.set(grossAmount.get().add(o.getAmount()));
+                    BigDecimal orderFee = feeEngine.calculateFeeAmount(o.getAmount());
+                    fee.set(fee.get().add(orderFee));
+                    BigDecimal orderNetAmount = o.getAmount().subtract(orderFee);
+                    netAmount.set(netAmount.get().add(orderNetAmount));
+                });
+                pageable = pageable.next();
+                orderPage = orderRepository.findOrdersCompletedInTimeFrameAndStatusPaged(from, to, Order.Status.COMPLETED, pageable);
+            }
+
+            Disbursement disbursement = new Disbursement();
+            disbursement.setMerchant(merchant);
+            disbursement.setPeriodStart(from);
+            disbursement.setPeriodEnd(to);
+            disbursement.setFeeAmount(fee.get());
+            disbursement.setNetAmount(netAmount.get());
+            disbursement.setGrossAmount(grossAmount.get());
+            disbursements.add(disbursement);
         }
 
-        Disbursement disbursement = new Disbursement();
-        disbursement.setMerchant(merchant);
-        disbursement.setPeriodStart(from);
-        disbursement.setPeriodEnd(to);
-        disbursement.setFeeAmount(fee.get());
-        disbursement.setNetAmount(netAmount.get());
-        disbursement.setGrossAmount(grossAmount.get());
+        return disbursementRepository.saveAll(disbursements);
+    }
 
-        return disbursementRepository.save(disbursement);
+    //algorithm to get weeks between two instants
+    public List<Tuple<Instant, Instant>> splitWeeks(Instant from, Instant to) {
+        LocalDate startDate = LocalDate.ofInstant(from, ZoneOffset.UTC).with(DayOfWeek.MONDAY);
+        LocalDate endDate = LocalDate.ofInstant(to, ZoneOffset.UTC);
+        //number of weeks
+        long weekNumber = ChronoUnit.WEEKS.between(startDate, endDate);
+
+        List<Tuple<Instant, Instant>> weeks = new ArrayList<>();
+        for (int i = 0; i < weekNumber; i++) {
+            LocalDate endOfWeekDay = startDate.plusDays(6);
+            Instant startOfWeek = startDate.atStartOfDay().toInstant(ZoneOffset.UTC);
+            Instant endOfWeek = endOfWeekDay.atStartOfDay().toInstant(ZoneOffset.UTC);
+            weeks.add(new Tuple<>(startOfWeek, endOfWeek));
+            startDate = endOfWeekDay.plusDays(1);
+        }
+        return weeks;
     }
 
     public void sendMoneyToMerchant(List<Disbursement> disbursements) {
