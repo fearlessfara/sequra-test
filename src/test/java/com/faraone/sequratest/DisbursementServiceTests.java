@@ -11,13 +11,12 @@ import com.faraone.sequratest.repository.ShopperRepository;
 import com.faraone.sequratest.service.DisbursementService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.platform.commons.logging.Logger;
-import org.junit.platform.commons.logging.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 
-import java.io.IOException;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -59,9 +58,9 @@ class DisbursementServiceTests {
     }
 
     @Test
-    void contextLoads() throws IOException {
+    void contextLoads() {
         baselineSetup.init();
-        System.out.println("hello");
+        LOG.info("hello, this is a test");
     }
 
     @Test
@@ -77,6 +76,8 @@ class DisbursementServiceTests {
         result = disbursementController.createDisbursement(dsb);
         assertThat(result.disbursements()).hasSize(14);
         //assertThat(result.disbursements().get(0).grossAmount().subtract(result.disbursements().get(0).feeAmount())).isEqualByComparingTo(result.disbursements().get(0).netAmount());
+        //TODO here we should put assertions on a manually calculated disbursement, due to lack of time I won't be able
+        //to to di in the 3 hours frame unfortunately
     }
 
 }
